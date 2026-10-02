@@ -24,3 +24,14 @@ Active `.github/workflows/ci.yml` calls original Semgrep, Gitleaks, OSV-Scanner 
 Qodo/PR-Agent remains opt-in because it needs provider credentials and an explicit review deployment. ASVS is a manual standard, not a scanner; evidence mapping remains unassessed until the actual target is implemented and reviewed. pgTAP needs a real PostgreSQL test database. Browser/performance/load examples require project-specific tests, an owned running target, installed tools and meaningful budgets. Example selectors/assertions do not test an unknown application.
 
 Hashes detect changes but are not cryptographic signatures proving provenance against a malicious local operator. The target and configuration are trusted inputs. No universal claim of perfect security, commercial readiness, novel ideas, independent model errors or clicking every possible UI state is made.
+
+## Observed GitHub Actions execution
+
+The first published code commit `5fa06fe8e71fb1b40e8fba75f9ce56133d65617a` completed all four jobs successfully in [run 37057805096](https://github.com/ahpa5246-lgtm/Programmed-Minds/actions/runs/37057805096):
+
+- Core tests: 64 passed. Semgrep: the three project-owned rules ran on nine Python files with zero findings. This is a narrow rule set, not comprehensive SAST coverage.
+- Gitleaks: original action completed successfully against repository history.
+- OSV-Scanner: original scanner and reporter completed successfully, with no issues reported for the scanned dependency inputs. The locked requirements cover the core runtime; optional live SDK dependencies need their own resolved lockfile when deployed.
+- Trivy: filesystem scan completed successfully; requirements.txt had zero findings at the configured HIGH/CRITICAL threshold. No infrastructure config files were detected, and license detection was skipped because site-packages was absent. These unscanned areas are not claimed clean.
+
+The CLI remains blocked locally when the original binaries are not installed. CI evidence applies to this repository snapshot; it does not certify an unbuilt target project, live inference correctness, all ASVS controls, browser interaction, or future vulnerability databases.
