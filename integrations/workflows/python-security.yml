@@ -1,0 +1,26 @@
+# Copy to .github/workflows/python-security.yml to activate.
+# These are real tools; this workflow has not been executed by this local build.
+name: Python core verification
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  tests-and-static-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install core and original Semgrep CLI
+        run: python -m pip install -e . semgrep
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Project-specific Semgrep analysis
+        run: semgrep scan --config integrations/semgrep/python.yml --error --strict --metrics=off --disable-version-check programmed_minds

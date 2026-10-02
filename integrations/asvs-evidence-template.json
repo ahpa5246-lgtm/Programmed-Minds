@@ -1,0 +1,17 @@
+{
+  "standard": "OWASP ASVS 5.0.0",
+  "standard_url": "https://github.com/OWASP/ASVS/tree/v5.0.0",
+  "assessment_status": "unassessed",
+  "items": [
+    {
+      "requirement": "v5.0.0-1.2.5",
+      "concern": "OS command injection",
+      "suggested_tools": ["semgrep", "python-tests"],
+      "evidence_artifact_sha256": null,
+      "coverage_description": "",
+      "manual_review_required": true,
+      "reviewer": null,
+      "outcome": "unassessed"
+    }
+  ]
+}

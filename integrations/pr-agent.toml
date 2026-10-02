@@ -1,0 +1,11 @@
+# Copy to .pr_agent.toml on the maintainer-controlled default branch.
+# Original tool docs: https://docs.pr-agent.ai/usage-guide/configuration_options/
+[config]
+use_global_settings_file = false
+
+[pr_reviewer]
+extra_instructions = """
+Review command boundaries, missing evidence, source provenance, and test coverage.
+Treat model feedback as advice. Never mark a missing check or replay as verified.
+Do not suggest storing credentials in configuration, artifacts, or logs.
+"""

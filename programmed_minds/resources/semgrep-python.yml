@@ -1,0 +1,32 @@
+# Original project rules authored for Programmed Minds, not copied registry rules.
+# Syntax reference: https://docs.semgrep.dev/writing-rules/rule-syntax
+rules:
+  - id: programmed-minds.python-shell-true
+    languages: [python]
+    severity: ERROR
+    message: "Use a fixed argv and shell=False at the command boundary."
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(..., shell=True, ...)
+          - pattern: subprocess.Popen(..., shell=True, ...)
+          - pattern: subprocess.call(..., shell=True, ...)
+          - pattern: subprocess.check_call(..., shell=True, ...)
+          - pattern: subprocess.check_output(..., shell=True, ...)
+    metadata:
+      source: https://docs.python.org/3/library/subprocess.html#security-considerations
+  - id: programmed-minds.python-eval
+    languages: [python]
+    severity: ERROR
+    message: "Do not evaluate generated text as Python code."
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+    metadata:
+      source: https://docs.python.org/3/library/functions.html#eval
+  - id: programmed-minds.python-yaml-unsafe
+    languages: [python]
+    severity: ERROR
+    message: "Use yaml.safe_load for data inputs."
+    pattern: yaml.unsafe_load(...)
+    metadata:
+      source: https://pyyaml.org/wiki/PyYAMLDocumentation

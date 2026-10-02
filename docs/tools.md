@@ -1,0 +1,76 @@
+# Original verification tools
+
+Programmed Minds invokes installed upstream CLIs. It does not implement their scanners, copy their source, or fabricate their findings. The packaged Semgrep rules are three original, narrowly scoped Python rules; they are not a comprehensive security ruleset. Syntax and flags were checked against the official sources below on 2026-10-02. No external scanners were installed or executed in this development environment. Offline unit tests exercise adapter behavior with mocks; separate tests execute Python's real unittest CLI and a timeout subprocess. Integration files are examples until installed and run.
+
+`run_checks(target, config, output)` accepts a trusted repository and a **new output directory outside that repository**. `checks.json` records the selected tools, fixed argument vectors, exit codes, elapsed seconds, sanitized log paths and per-log hashes, requirement mappings, and a SHA-256 of canonical JSON excluding the `sha256` field (`sort_keys=True`, `separators=(',', ':')`). This hash detects accidental edits; it is not a signature or independent attestation. Scanner output and program configuration are not evidence of execution until an actual invocation completes.
+
+## Configuration and gates
+
+Use `integrations/checks-python.json` for the Python core. It intentionally blocks here because required scanners are missing. `integrations/checks-web-example.json` is a target application example, not the core's claimed verification. Copy target examples into the application repository, replace product assertions and budgets, install tools, and build the actual app first. All configuration belongs to the user; agent output cannot supply commands, executable paths, or URL ownership.
+
+Each check uses `name`, `required` (default true), `enabled` (default true), `reason`, `timeout` (default 120 seconds, range .05–1800), and optional `requirement_ids` (a bounded list of distinct identifiers). Unknown fields, duplicate tools, non-boolean gates, and arbitrary `argv` are rejected. Tool-specific relative config/script paths must exist inside the trusted target. `..`, absolute config paths, symlink paths, broad host roots, escaping target symlinks, and reused output directories are rejected. Choose a specific project directory, never a machine or home-directory scan.
+
+| Row status | Meaning | Gate |
+|---|---|---|
+| `passed` | Real executable exited zero; test tools also report a positive executed test count | Contributes evidence |
+| `failed` | Nonzero exit, including findings or tool errors | Blocks |
+| `error` | Invalid inputs, timeout, launch failure, or no executed tests confirmed | Blocks |
+| `missing` | Original CLI is not installed on PATH | Required blocks |
+| `not_applicable` | Explicitly disabled; reason recorded; nothing ran | Required blocks |
+
+An empty set or a set with no executed pass remains `blocked`. A required disabled/missing check remains `blocked`. Optional failures/errors also block. An optional, documented non-applicable or missing tool can coexist with a passed applicable tool. Applicability is the user's decision, not a way for an AI to bypass requirements. Mapping a tool to a requirement does not establish that the tool fully tests it; a reviewer must assess actual assertions and coverage.
+
+Network checks (`zap`, `k6`, `playwright`, `lighthouse`) require `allow_network: true`, a per-check `url`, and exact membership in user-supplied `owned_urls`. Owned localhost targets work. URLs must be HTTP(S) without credentials, query strings, fragments, or control characters. The adapter supplies `BASE_URL` to target scripts. The trusted scripts/configuration must honor it: this is not a network sandbox, and a browser can load third-party resources or redirects. Use owned disposable services and controlled network isolation when required. OSV and Trivy may contact their upstream vulnerability services to obtain advisory data; `allow_network` controls scans of a target web service, not those upstream database downloads.
+
+Commands run with `shell=False`, no stdin, a limited environment without inherited model credentials, bounded retained stdout/stderr (64 KiB plus a truncation marker), and deadlines that terminate the process group. Logs receive best-effort secret/authorization/private-key redaction; original tools can emit unknown secret formats. Review artifacts before sharing. Tool-created Playwright/Lighthouse artifacts are original unsanitized outputs; keep test data free of secrets. Repository tests and configuration are executable code and must be trusted. The adapters are not an OS sandbox.
+
+## Adapters, prerequisites and upstream sources
+
+Executables must already be on PATH. Nothing auto-installs via `npx`. For application-local npm CLIs, install the packages in the trusted target and launch Programmed Minds with the target's `node_modules/.bin` on PATH, for example `PATH="$PWD/node_modules/.bin:$PATH" programmed-minds ...` from that target. Choose and pin reviewed tool versions in your environment and lockfiles. CI examples use upstream moving tags as templates; replace them with reviewed immutable revisions before relying on them.
+
+| Check | Fixed upstream invocation (paths shown symbolically) | Prerequisite and original source / license |
+|---|---|---|
+| `semgrep` | `semgrep scan --config RULES --error --strict --metrics=off --disable-version-check TARGET` | Python CLI via `pipx install semgrep` or upstream release; packaged rules by default, optional target-relative `config`. [CLI](https://docs.semgrep.dev/cli-reference), [rule syntax](https://docs.semgrep.dev/writing-rules/rule-syntax), [source/license LGPL-2.1](https://github.com/semgrep/semgrep). `--error` is necessary because plain scan need not fail on findings. |
+| `gitleaks` | `gitleaks dir --redact --no-banner TARGET` | Install upstream Gitleaks binary. Working-directory content scan, not history. [source, CLI and MIT license](https://github.com/gitleaks/gitleaks). |
+| `osv` | `osv-scanner scan source --recursive TARGET` | Install OSV-Scanner v2 and provide supported dependency manifests/lockfiles. [usage](https://google.github.io/osv-scanner/usage/), [source / Apache-2.0](https://github.com/google/osv-scanner). No `fix` or package build invocation. |
+| `trivy` | `trivy fs --scanners vuln,misconfig,secret --exit-code 1 --severity HIGH,CRITICAL TARGET` | Install original Trivy binary and obtain its databases. Gate covers HIGH/CRITICAL findings only. [filesystem](https://trivy.dev/docs/latest/target/filesystem/), [exit policy](https://trivy.dev/docs/latest/configuration/others/), [source / Apache-2.0](https://github.com/aquasecurity/trivy). |
+| `zap` | `zap-baseline.py -t OWNED_URL -m 1 -T 5 -s` | Install official baseline script with a functioning ZAP installation (normally its official container); expose `zap-baseline.py` on PATH in that environment. [baseline CLI / exit codes](https://www.zaproxy.org/docs/docker/baseline-scan/), [source / Apache-2.0](https://github.com/zaproxy/zaproxy). Passive baseline and spider only; WARN exit 2 blocks. No automatic Docker wrapper or active scan. |
+| `pgtap` | `pg_prove --norc --verbose --host localhost --dbname DATABASE --username USER FILES...` | PostgreSQL, installed pgTAP extension, psql, and Perl TAP::Parser::SourceHandler::pgTAP (`pg_prove`). Explicit local disposable `database` required; optional `db_user`, `password_env` (an environment-variable name, never its value), `tests_dir` (default `tests/sql`). Requires `.sql`/`.pg` files and positive harness test count. [CLI](https://pgtap.org/pg_prove.html), [source/licensing metadata](https://github.com/theory/pgtap/blob/main/META.json). Consult upstream distribution for exact license terms. |
+| `playwright` | `playwright test --config CONFIG --reporter=json --forbid-only --workers=1 --output RESULTS` | Node, installed `@playwright/test`, and browser binaries (`npx playwright install chromium` during explicit setup). Default `playwright.config.ts`; valid JSON reporter output with an actually passed test is required; malformed/truncated JSON blocks. [CLI](https://playwright.dev/docs/test-cli), [source / Apache-2.0](https://github.com/microsoft/playwright). |
+| `lighthouse` | `lhci autorun --config=CONFIG --collect.url=OWNED_URL --upload.target=filesystem --upload.outputDir=RESULTS` | Node, `@lhci/cli`, working Chrome/Chromium and a served app. Default `lighthouserc.json`; configure real `error` assertions. Result storage is forced local. [configuration](https://googlechrome.github.io/lighthouse-ci/docs/configuration.html), [source / Apache-2.0](https://github.com/GoogleChrome/lighthouse-ci). |
+| `size-limit` | `size-limit --config CONFIG` | Node, `size-limit` plus the actual plugin/preset (example: `@size-limit/file`), built `dist/app.js` and explicit budgets. Default `.size-limit.json`. [CLI/config/source / MIT](https://github.com/ai/size-limit). The adapter does not build the app. |
+| `k6` | `k6 run --vus 1 --duration 10s --env BASE_URL=OWNED_URL SCRIPT` | Original k6 binary; target-relative script (default `k6.js`) with explicit thresholds. Conservative adapter defaults, not capacity certification. [running](https://grafana.com/docs/k6/latest/get-started/running-k6/), [source / AGPL-3.0](https://github.com/grafana/k6). |
+| `python-tests` | Current Python interpreter `-m unittest discover -s TESTS -v` | Python ≥3.11; actual `test*.py` files in target-relative `tests_dir` (default `tests`); positive executed test count; an entirely skipped unittest suite blocks. [official unittest CLI](https://docs.python.org/3/library/unittest.html#command-line-interface), [Python license](https://docs.python.org/3/license.html). |
+
+Project Semgrep rules catch explicit `shell=True`, `eval`/`exec`, and `yaml.unsafe_load` constructs. They do not prove absence of all command injection, dangerous deserialization, indirect aliases, or cross-file vulnerabilities. Add reviewed original tool configurations for the target language and threat model. Semgrep registry rule licenses differ from the engine's license; no registry rules are bundled here.
+
+## CI and PR review
+
+`integrations/workflows/python-security.yml` runs real core unit tests and Semgrep after installation. Copy it to `.github/workflows` to activate it; merely shipping this template does not prove CI ran. [Checkout](https://github.com/actions/checkout) and [setup-python](https://github.com/actions/setup-python) are upstream actions. Other scanners remain required in the supplied local Python check policy; install/run them separately or add reviewed CI jobs for them.
+
+`integrations/workflows/pr-agent-optional.yml` and `integrations/pr-agent.toml` integrate the original optional PR-Agent tool. The former `qodo-ai/pr-agent` URL now redirects to [The-PR-Agent/pr-agent](https://github.com/The-PR-Agent/pr-agent); the official action is `The-PR-Agent/pr-agent@main`. This community project is separate from Qodo's hosted product. [Official action guide](https://docs.pr-agent.ai/installation/github/) and [minimal local config guide](https://docs.pr-agent.ai/usage-guide/configuration_options/) describe the interface. Its [upstream license](https://github.com/The-PR-Agent/pr-agent/blob/main/LICENSE) applies to the tool; no upstream source is included here.
+
+Copy the TOML to `.pr_agent.toml` on the maintainer-controlled default branch. The optional workflow runs only when repository variable `ENABLE_PR_AGENT=true`, `OPENAI_KEY` is supplied through repository secrets, and the PR branch belongs to the same repository. Review the immutable action revision and model/data policy before enabling it. It posts AI advice to the PR, uses credentials only in the action environment, and never satisfies a release gate. No PR comments were sent during development.
+
+## ASVS manual evidence mapping
+
+[OWASP ASVS](https://owasp.org/projects/asvs) is a manual verification standard, not a scanner executable. Use the released [5.0.0 version](https://github.com/OWASP/ASVS/tree/v5.0.0) when selecting exact requirements; the [master branch](https://github.com/OWASP/ASVS) may change. Cite versioned identifiers, such as `v5.0.0-1.2.5`. ASVS content is licensed CC-BY-SA-4.0; the standard is referenced, not bundled. The following is our suggested evidence plan, not an assessment or compliance claim.
+
+| Concern | Suggested evidence | Manual work still needed |
+|---|---|---|
+| OS command injection (`v5.0.0-1.2.5`) | Fixed argv/shell=False code review, adapter injection tests, Semgrep findings | Review every OS call and indirect invocation in the implemented target |
+| Encoding / browser injection (V1) | Dashboard escaping tests; target browser tests; ZAP baseline observations | Assess each output context and authenticated/dynamic paths |
+| Configuration and secrets (V13) | Gitleaks/Trivy findings; environment-variable config; log-redaction tests | Assess deployed secret storage, rotation, privileges, outbound controls |
+| Secure coding and dependencies (V15) | OSV manifest/lockfile scan; original Semgrep rules; architecture review | Validate dependency coverage, threat model and controls the scanner cannot examine |
+| Authentication / authorization | Target-specific API/Playwright tests with multiple identities; pgTAP policy tests | Review permission boundaries, tenant isolation, session handling and abuse cases |
+| Performance / availability | k6 thresholds, Lighthouse assertions, Size Limit budgets | Validate realistic workload, failure modes and capacity; these tools are not ASVS certifications |
+
+Use `integrations/asvs-evidence-template.json` to record manual assessment ownership and links. Every applicable item needs a real artifact hash, test/control coverage, reviewer and outcome. Fill it from executed reports; its default `unassessed` rows must not be counted as passes. Add actual application requirement IDs to check configuration only after verifying the associated tests cover them. An empty mapping provides no requirement evidence. Functional requirement evidence uses `test_results` extracted from the original reporters, rather than a scanner's broad pass. For a requirement, select its `evidence_tool` (`python-tests`, `playwright`, `pgtap`, or `manual`) and the exact `test_id`. Only an actual passed test from the appropriate passed tool can cover it; skipped, expected-failure and flaky results do not count.
+
+| Tool | Exact `test_id` convention | Example |
+|---|---|---|
+| unittest | Full identifier in the verbose reporter's parentheses | `test_projects.ProjectTests.test_create_project` |
+| Playwright | Suite titles (starting with the relative file), test title, and nonempty project name, joined with `::` | `application.spec.ts::home page exposes a usable primary action` |
+| pgTAP | Label after `ok N -`, excluding a SKIP/TODO directive | `projects table exists` |
+
+Keep test identifiers unique; duplicated pgTAP labels or reused browser titles cannot distinguish a requirement. A 64 KiB retained log limit also applies to JSON; oversized Playwright reporter output fails closed instead of providing incomplete coverage. `manual` evidence remains outside this automatic functional gate and needs a recorded human assessment.

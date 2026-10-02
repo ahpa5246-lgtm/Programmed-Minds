@@ -1,0 +1,16 @@
+{
+  "strict_diversity": true,
+  "max_revisions": 2,
+  "max_calls": 30,
+  "max_output_tokens": 4000,
+  "default": {
+    "model_env": "OPENAI_MODEL",
+    "api_key_env": "OPENAI_API_KEY",
+    "base_url": "https://api.openai.com/v1"
+  },
+  "roles": {
+    "research_critic": {"model_env": "CRITIC_MODEL"},
+    "improvement_critic": {"model_env": "CRITIC_MODEL"},
+    "plan_critic": {"model_env": "CRITIC_MODEL"}
+  }
+}

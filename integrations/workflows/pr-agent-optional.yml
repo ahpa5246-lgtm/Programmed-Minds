@@ -1,0 +1,28 @@
+# Optional: copy to .github/workflows/pr-agent.yml after maintainer review.
+# Current original OSS repository moved from qodo-ai/pr-agent to The-PR-Agent.
+# Qodo's hosted product is separate. AI feedback never replaces objective checks.
+# Set repository variable ENABLE_PR_AGENT=true and secret OPENAI_KEY to opt in.
+name: Optional PR-Agent review
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  review:
+    if: vars.ENABLE_PR_AGENT == 'true' && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      # Replace main with a maintainer-reviewed immutable commit before enabling.
+      - uses: The-PR-Agent/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github_action_config.auto_review: 'true'
+          github_action_config.auto_describe: 'false'
+          github_action_config.auto_improve: 'false'

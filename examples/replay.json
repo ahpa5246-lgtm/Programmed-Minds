@@ -1,0 +1,348 @@
+{
+  "researcher": [
+    {
+      "data": {
+        "summary": "Demonstration data only. No novelty or award is asserted.",
+        "ideas": [
+          {
+            "id": "I1",
+            "title": "Engineering lab notebook",
+            "problem": "Students lose practical experiment notes",
+            "audience": "Engineering beginners",
+            "differentiation": "Arabic experiment walkthroughs",
+            "evidence_ids": [
+              "S1"
+            ],
+            "novelty": "hypothesis",
+            "winning_evidence": ""
+          }
+        ],
+        "sources": [
+          {
+            "id": "S1",
+            "title": "Official ASVS source (fixture, not researched)",
+            "url": "https://github.com/OWASP/ASVS",
+            "supports": "Manual security acceptance standard",
+            "accessed_at": "2026-10-02"
+          }
+        ],
+        "unknowns": [
+          "Demand and originality require live primary-source research"
+        ]
+      },
+      "evidence_urls": [
+        "https://github.com/OWASP/ASVS"
+      ],
+      "identity": "fixture|producer",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "research_critic": [
+    {
+      "data": {
+        "verdict": "approve",
+        "summary": "Fixture review only; not real independent evaluation",
+        "issues": [],
+        "questions": []
+      },
+      "evidence_urls": [],
+      "identity": "fixture|critic",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "improver": [
+    {
+      "data": {
+        "selected_idea_id": "I1",
+        "concept": "دفتر تجارب هندسية عربي مع خطوات واضحة ونتائج محفوظة.",
+        "changes": [
+          "Start with one experiment and observable student outcome"
+        ],
+        "requirements": [
+          {
+            "id": "R1",
+            "description": "Arabic right-to-left experiment interface",
+            "acceptance": "User can enter a result and read it after reload",
+            "origin": "User brief",
+            "evidence_tool": "playwright",
+            "test_id": "e2e/application.spec.ts::persist experiment result::chromium"
+          }
+        ],
+        "competition_fit": [
+          "No competition supplied; eligibility unverified"
+        ],
+        "feasibility": "Local prototype in seven days is a hypothesis pending implementation",
+        "risks": [
+          "Unvalidated demand"
+        ],
+        "excluded_scope": [
+          "Multi-user accounts and cloud sync"
+        ]
+      },
+      "evidence_urls": [],
+      "identity": "fixture|producer",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "improvement_critic": [
+    {
+      "data": {
+        "verdict": "approve",
+        "summary": "Fixture review only; not real independent evaluation",
+        "issues": [],
+        "questions": []
+      },
+      "evidence_urls": [],
+      "identity": "fixture|critic",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "planner": [
+    {
+      "data": {
+        "architecture": "Local static web app with persisted experiment results",
+        "stack": [
+          "HTML",
+          "CSS",
+          "JavaScript"
+        ],
+        "tasks": [
+          {
+            "id": "T1",
+            "title": "Create experiment flow and persistence",
+            "files": [
+              "index.html",
+              "src/app.js",
+              "tests/experiment.spec.ts"
+            ],
+            "depends_on": [],
+            "requirement_ids": [
+              "R1"
+            ],
+            "acceptance": [
+              "Playwright fills a result, reloads and asserts persisted result"
+            ],
+            "tools": [
+              "playwright",
+              "gitleaks"
+            ]
+          }
+        ],
+        "gates": [
+          {
+            "tool": "superpowers",
+            "applicable": true,
+            "required": true,
+            "reason": "Use on implementation",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "qodo",
+            "applicable": false,
+            "required": false,
+            "reason": "No matching backend/dependencies/container or scale requirement in the bounded demo",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "asvs",
+            "applicable": true,
+            "required": true,
+            "reason": "Use on implementation",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "semgrep",
+            "applicable": true,
+            "required": false,
+            "reason": "Use on implementation",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "gitleaks",
+            "applicable": true,
+            "required": true,
+            "reason": "Use on implementation",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "osv",
+            "applicable": false,
+            "required": false,
+            "reason": "No matching backend/dependencies/container or scale requirement in the bounded demo",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "trivy",
+            "applicable": false,
+            "required": false,
+            "reason": "No matching backend/dependencies/container or scale requirement in the bounded demo",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "zap",
+            "applicable": false,
+            "required": false,
+            "reason": "No matching backend/dependencies/container or scale requirement in the bounded demo",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "pgtap",
+            "applicable": false,
+            "required": false,
+            "reason": "No matching backend/dependencies/container or scale requirement in the bounded demo",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "playwright",
+            "applicable": true,
+            "required": true,
+            "reason": "Use on implementation",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "lighthouse",
+            "applicable": true,
+            "required": false,
+            "reason": "Use on implementation",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "size-limit",
+            "applicable": true,
+            "required": false,
+            "reason": "Use on implementation",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          },
+          {
+            "tool": "k6",
+            "applicable": false,
+            "required": false,
+            "reason": "No matching backend/dependencies/container or scale requirement in the bounded demo",
+            "evidence": "Actual report and requirement-linked tests, or documented manual review"
+          }
+        ],
+        "asvs_mapping": [
+          "Select applicable v5.0.0 requirement IDs from the original ASVS CSV before release; not yet verified"
+        ],
+        "delivery_steps": [
+          "Implement with the coding handoff",
+          "Run actual checks on the target",
+          "Resolve all gaps and obtain human release sign-off"
+        ]
+      },
+      "evidence_urls": [],
+      "identity": "fixture|producer",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "plan_critic": [
+    {
+      "data": {
+        "verdict": "approve",
+        "summary": "Fixture review only; not real independent evaluation",
+        "issues": [],
+        "questions": []
+      },
+      "evidence_urls": [],
+      "identity": "fixture|critic",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "designer": [
+    {
+      "data": {
+        "direction": "Clear experiment workspace with one result form and persistent notebook",
+        "palette": [
+          "#14283A",
+          "#FFFFFF",
+          "#EDF3F7",
+          "#205F80",
+          "#BD6429"
+        ],
+        "typography": "Readable Arabic system font with 18px body text",
+        "user_flows": [
+          "Choose experiment, record result, reload notebook"
+        ],
+        "components": [
+          "Experiment selector, result form, save confirmation, empty/error states"
+        ],
+        "accessibility": [
+          "Visible keyboard focus and labelled controls"
+        ],
+        "responsive_rules": [
+          "One column on mobile, experiment reference beside result on desktop"
+        ],
+        "sources": [
+          {
+            "id": "S1",
+            "title": "Official ASVS source (fixture, not researched)",
+            "url": "https://github.com/OWASP/ASVS",
+            "supports": "Manual security acceptance standard",
+            "accessed_at": "2026-10-02"
+          }
+        ],
+        "license_notes": [
+          "Fixture reference illustrates source tracking only; no asset copied"
+        ]
+      },
+      "evidence_urls": [
+        "https://github.com/OWASP/ASVS"
+      ],
+      "identity": "fixture|producer",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "tester": [
+    {
+      "data": {
+        "verdict": "block",
+        "summary": "No implemented target or browser execution",
+        "cases": [
+          {
+            "requirement_id": "R1",
+            "scenario": "Persist experiment result after reload",
+            "steps": [
+              "Fill result",
+              "Save",
+              "Reload"
+            ],
+            "expected": "Saved value remains",
+            "evidence": "",
+            "status": "not_run"
+          }
+        ],
+        "gaps": [
+          "Real browser execution is missing"
+        ],
+        "issues": []
+      },
+      "evidence_urls": [],
+      "identity": "fixture|producer",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ]
+}

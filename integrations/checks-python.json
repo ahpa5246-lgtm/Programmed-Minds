@@ -1,0 +1,15 @@
+{
+  "checks": [
+    {"name":"python-tests", "required":true, "tests_dir":"tests", "timeout":120},
+    {"name":"semgrep", "required":true, "timeout":120},
+    {"name":"gitleaks", "required":true, "timeout":120},
+    {"name":"osv", "required":true, "timeout":300},
+    {"name":"trivy", "required":true, "timeout":300},
+    {"name":"pgtap", "required":false, "enabled":false, "reason":"Core has no PostgreSQL persistence."},
+    {"name":"playwright", "required":false, "enabled":false, "reason":"Core dashboard has unit-tested rendering; live browser audit is separate."},
+    {"name":"lighthouse", "required":false, "enabled":false, "reason":"Not run against a served target."},
+    {"name":"size-limit", "required":false, "enabled":false, "reason":"Python core has no bundled JavaScript."},
+    {"name":"k6", "required":false, "enabled":false, "reason":"No owned load-test server was supplied."},
+    {"name":"zap", "required":false, "enabled":false, "reason":"No owned HTTP target was supplied."}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "allow_network": true,
+  "owned_urls": ["http://localhost:8000/"],
+  "checks": [
+    {"name":"semgrep", "required":true},
+    {"name":"gitleaks", "required":true},
+    {"name":"osv", "required":true, "timeout":300},
+    {"name":"trivy", "required":true, "timeout":300},
+    {"name":"playwright", "required":true, "url":"http://localhost:8000/", "timeout":300},
+    {"name":"lighthouse", "required":true, "url":"http://localhost:8000/", "timeout":300},
+    {"name":"size-limit", "required":true},
+    {"name":"k6", "required":true, "url":"http://localhost:8000/"},
+    {"name":"zap", "required":true, "url":"http://localhost:8000/", "timeout":600},
+    {"name":"pgtap", "required":true, "database":"app_test", "db_user":"postgres", "tests_dir":"tests/sql"}
+  ]
+}
