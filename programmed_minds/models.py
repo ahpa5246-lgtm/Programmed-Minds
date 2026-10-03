@@ -46,6 +46,16 @@ class Requirement(Contract):
     evidence_tool:Literal['playwright','python-tests','pgtap','manual']
     test_id:str=Field(min_length=1)
 
+class StrategyAssessment(Contract):
+    decision:Literal['go','clarify','stop']
+    judging_basis:str=Field(min_length=1)
+    differentiation:str=Field(min_length=1)
+    strongest_rival:str=Field(min_length=1)
+    failure_scenario:str=Field(min_length=1)
+    disconfirming_test:str=Field(min_length=1)
+    evidence_ids:list[str]=Field(min_length=1)
+    unknowns:list[str]
+
 class Improvement(Contract):
     selected_idea_id:str
     concept:str
@@ -55,6 +65,7 @@ class Improvement(Contract):
     feasibility:str
     risks:list[str]
     excluded_scope:list[str]
+    strategy_assessment:StrategyAssessment|None
 
 class Task(Contract):
     id:str

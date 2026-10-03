@@ -56,4 +56,42 @@ class PipelineTests(unittest.TestCase):
         self.fixture['researcher'][0]['data']['sources'][0]['url']='javascript:alert(1)'
         self.fixture['researcher'][0]['evidence_urls']=['javascript:alert(1)']
         self.assertEqual(self.run_with()['status'],'blocked')
+    def competition_run(self, assessment=None):
+        if assessment is not None: self.fixture['improver'][0]['data']['strategy_assessment']=assessment
+        return run_pipeline({'goal':'Win a hackathon','competition':{'name':'Render Challenge','rules':['Use Render Workflows']}},
+                            ReplayProvider(self.fixture),self.out)
+    def assessment(self, decision='go'):
+        return {'decision':decision,'judging_basis':'Use Render Workflows with an observable result',
+                'differentiation':'Demonstrate recovery from a failed job',
+                'strongest_rival':'A rival may show more meaningful orchestration',
+                'failure_scenario':'A shallow scheduled workflow will not stand out',
+                'disconfirming_test':'Compare a failure-and-recovery demo against two past winners',
+                'evidence_ids':['S1'],'unknowns':[]}
+    def test_competition_requires_strategic_assessment(self):
+        result=self.competition_run()
+        self.assertEqual(result['status'],'blocked')
+        self.assertIn('strategy assessment',result['error'])
+        self.assertFalse((self.out/'HANDOFF.md').exists())
+    def test_competition_clarify_blocks_build_handoff(self):
+        result=self.competition_run(self.assessment('clarify'))
+        self.assertEqual(result['status'],'blocked')
+        self.assertIn('clarify',result['error'])
+    def test_competition_assessment_requires_observed_source(self):
+        assessment=self.assessment();assessment['evidence_ids']=['fabricated']
+        result=self.competition_run(assessment)
+        self.assertEqual(result['status'],'blocked')
+        self.assertIn('evidence',result['error'])
+    def test_competition_go_emits_rival_and_failure_in_handoff(self):
+        result=self.competition_run(self.assessment())
+        self.assertEqual(result['status'],'planned')
+        handoff=(self.out/'HANDOFF.md').read_text()
+        self.assertIn('A rival may show more meaningful orchestration',handoff)
+        self.assertIn('A shallow scheduled workflow will not stand out',handoff)
+    def test_competition_rules_link_must_be_in_observed_research(self):
+        self.fixture['improver'][0]['data']['strategy_assessment']=self.assessment()
+        result=run_pipeline({'goal':'Win a hackathon','competition':{
+            'name':'Render Challenge','rules_url':'https://example.org/official-rules'}},
+            ReplayProvider(self.fixture),self.out)
+        self.assertEqual(result['status'],'blocked')
+        self.assertIn('official rules',result['error'])
 if __name__=='__main__': unittest.main()

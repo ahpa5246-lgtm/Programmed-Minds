@@ -83,7 +83,8 @@
         ],
         "excluded_scope": [
           "Multi-user accounts and cloud sync"
-        ]
+        ],
+        "strategy_assessment": null
       },
       "evidence_urls": [],
       "identity": "fixture|producer",
