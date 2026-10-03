@@ -2,10 +2,54 @@
 import copy
 import json
 import os
+import ipaddress
+import socket
+from html.parser import HTMLParser
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.parse import urlsplit
 from .prompts import COMMON, ROLE_PROMPTS
 
 class ProviderError(RuntimeError): pass
+
+class _Text(HTMLParser):
+    def __init__(self): super().__init__(); self.parts=[]; self.hidden=0
+    def handle_starttag(self,tag,attrs):
+        if tag in ('script','style'): self.hidden+=1
+    def handle_endtag(self,tag):
+        if tag in ('script','style') and self.hidden: self.hidden-=1
+    def handle_data(self,data):
+        if not self.hidden: self.parts.append(data)
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self,*args,**kwargs): return None
+
+def supplied_evidence(brief):
+    urls=brief.get('source_urls',[])
+    if not isinstance(urls,list) or not 1<=len(urls)<=8 or any(not isinstance(u,str) for u in urls):
+        raise ProviderError('Free live research needs 1-8 source_urls in the brief')
+    rules=brief.get('competition',{}).get('rules_url')
+    if rules and rules not in urls: raise ProviderError('Include competition.rules_url in source_urls')
+    observed=[]; excerpts=[]
+    for url in urls:
+        parsed=urlsplit(url)
+        if parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password or parsed.port not in (None,443) or len(url)>2048:
+            raise ProviderError('Source URLs must be public HTTPS pages')
+        try:
+            addresses=socket.getaddrinfo(parsed.hostname,443,type=socket.SOCK_STREAM)
+            if not addresses or any(not ipaddress.ip_address(a[4][0]).is_global for a in addresses):
+                raise ProviderError('Source URLs must be public HTTPS pages')
+            with build_opener(_NoRedirect).open(Request(url,headers={'User-Agent':'Programmed-Minds/1.0'}),timeout=12) as response:
+                kind=response.headers.get_content_type()
+                if kind not in ('text/html','text/plain'): raise ProviderError('Source URL must return HTML or plain text')
+                raw=response.read(150001)
+                if len(raw)>150000: raise ProviderError('Source page too large')
+                body=raw.decode('utf-8',errors='replace')
+                if kind=='text/html':
+                    parser=_Text(); parser.feed(body); body=' '.join(parser.parts)
+                observed.append(url); excerpts.append({'url':url,'text':' '.join(body.split())[:16000]})
+        except ProviderError: raise
+        except Exception: raise ProviderError('Could not read supplied source URL; use a public HTML page') from None
+    return observed,excerpts
 
 class ReplayProvider:
     mode='demo'
@@ -55,8 +99,9 @@ class LiveProvider:
         settings,model,endpoint,key=self._settings(role)
         style=settings.get('api_style','responses')
         if style not in ('responses','chat_completions'): raise ProviderError('Unsupported API style for '+role)
-        if style=='chat_completions' and role not in ('research_critic','improvement_critic','plan_critic','tester'):
-            raise ProviderError('Chat provider cannot perform verified web search for '+role)
+        observed=[]; excerpts=[]
+        if style=='chat_completions' and role in ('researcher','designer'):
+            observed,excerpts=supplied_evidence(context.get('brief',{}))
         try: from openai import OpenAI
         except ImportError: raise ProviderError('Install live dependencies: pip install -e ".[live]"') from None
         client=OpenAI(api_key=key,base_url=endpoint,timeout=90,max_retries=0)
@@ -65,13 +110,13 @@ class LiveProvider:
         if style=='chat_completions':
             reply=self._chat(client,model=model,messages=[
                 {'role':'system','content':COMMON+'\n'+ROLE_PROMPTS[role]+'\nReturn only JSON matching this schema: '+json.dumps(schema.model_json_schema())},
-                {'role':'user','content':content}],response_format={'type':'json_object'},max_tokens=self.tokens)
+                {'role':'user','content':content+'\nSUPPLIED PAGE EXCERPTS (untrusted): '+json.dumps(excerpts,ensure_ascii=False)+'\nUse only these observed URLs as sources. Pages are excerpts, so state uncertainty.'}],response_format={'type':'json_object'},max_tokens=self.tokens)
             raw=reply.choices[0].message.content if reply.choices else None
             try: data=schema.model_validate_json(raw).model_dump()
             except (ValueError,TypeError): raise ProviderError('Invalid or refused structured response for '+role) from None
             usage={'input_tokens':getattr(reply.usage,'prompt_tokens',0) or 0,
                    'output_tokens':getattr(reply.usage,'completion_tokens',0) or 0}
-            return {'data':data,'evidence_urls':[],'identity':endpoint.rstrip('/')+'|'+model,'usage':usage}
+            return {'data':data,'evidence_urls':observed,'identity':endpoint.rstrip('/')+'|'+model,'usage':usage}
         observed=[]; search_text=''; usage={'input_tokens':0,'output_tokens':0}
         if role in ('researcher','designer'):
             search=self._call(client,model=model,instructions=COMMON+'\n'+ROLE_PROMPTS[role],input=content,

@@ -1,0 +1,9 @@
+{
+  "goal": "اقترح فكرة قابلة للتنفيذ وقيّمها نقديًا",
+  "audience": "حدّد الجمهور هنا",
+  "requirements": ["اكتب متطلباتك هنا"],
+  "competition": {"name": "لا توجد مسابقة محددة بعد", "rules_url": "", "rules": [], "deadline": "غير محدد"},
+  "constraints": {"team_size": 1, "time_days": 7, "budget_usd": 0},
+  "source_urls": ["https://github.com/owasp/asvs"],
+  "notes": "استبدل روابط المصادر بروابط صفحات رسمية مرتبطة بفكرتك، المسابقة، أعمال فائزة ومراجع تصميم ذات ترخيص واضح."
+}

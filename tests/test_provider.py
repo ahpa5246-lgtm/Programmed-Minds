@@ -63,5 +63,19 @@ class ProviderTests(unittest.TestCase):
  def test_chat_critic_cannot_enable_unverified_web_search(self):
   config={'default':{'model':'any'},'roles':{'researcher':{'api_style':'chat_completions'}}}
   with patch.dict(os.environ,{'OPENAI_API_KEY':'secret'}):
-   with self.assertRaisesRegex(ProviderError,'web search'): LiveProvider(config).generate('researcher',Research,{})
+   with self.assertRaisesRegex(ProviderError,'source_urls'): LiveProvider(config).generate('researcher',Research,{})
+ def test_free_config_uses_distinct_models_and_no_openai_key(self):
+  config=json.loads((Path(__file__).resolve().parents[1]/'examples/fully-free.json').read_text())
+  provider=LiveProvider(config)
+  with patch.dict(os.environ,{'GROQ_API_KEY':'groq','OPENROUTER_API_KEY':'route'},clear=True):
+   for producer,critic in [('researcher','research_critic'),('improver','improvement_critic'),('planner','plan_critic')]:
+    p=provider._settings(producer); c=provider._settings(critic)
+    self.assertNotEqual((p[1],p[2]),(c[1],c[2]))
+    self.assertNotIn('OPENAI_API_KEY',(p[0]['api_key_env'],c[0]['api_key_env']))
+ def test_free_sources_require_competition_rules_and_https(self):
+  from programmed_minds.provider import supplied_evidence
+  with self.assertRaisesRegex(ProviderError,'rules_url'):
+   supplied_evidence({'source_urls':['https://example.com'],'competition':{'rules_url':'https://example.org'}})
+  with self.assertRaisesRegex(ProviderError,'HTTPS'):
+   supplied_evidence({'source_urls':['http://example.com']})
 if __name__=='__main__': unittest.main()

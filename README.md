@@ -38,6 +38,20 @@ python -m programmed_minds view --run runs/demo
 python -m pip install -e '.[live]'
 ```
 
+### تشغيل مجاني بالمفتاحين فقط
+
+انسخ `examples/free-brief.json` إلى `my-brief.json`، واكتب هدفك وشروط المسابقة وروابط صفحات رسمية حقيقية في `source_urls`، **بما فيها `competition.rules_url` إذا حددته**. يفتح التطبيق حتى 8 صفحات HTTPS عامة من الروابط التي تختارها، ويقدّم مقتطفات منها للباحث والمصمم. الروابط وحدها لا تثبت صحة استنتاجات النماذج، ولا يكتشف النظام مصادر جديدة بهذا المسار. الصفحات التي تتطلب تسجيل دخول أو ملفات PDF غير مدعومة في هذا الوضع.
+
+في PowerShell، بعد تثبيت البرنامج، شغّل:
+
+```powershell
+$env:GROQ_API_KEY="الصقي_مفتاح_Groq_هنا"
+$env:OPENROUTER_API_KEY="الصقي_مفتاح_OpenRouter_هنا"
+python -m programmed_minds plan --brief my-brief.json --config examples/fully-free.json --out runs/free-01
+```
+
+لا تكتبي المفتاحين في ملف الوصف أو في Git. الثمانية أدوار تستعمل Qwen على Groq وGLM المجاني على OpenRouter؛ المنتج والناقد في كل مرحلة على مزودين مختلفين. المفتاح المجاني له حدود استخدام وقد تتغير النماذج المتاحة. الإعداد لا يستدعي OpenAI API، لكنه لا يكتب المنتج النهائي: إذا ظهرت `planned` راجعي `runs/free-01/HANDOFF.md` و`approved.json`، ثم أرسليهما لوكيل البرمجة في مستودع المنتج. إذا ظهر `blocked` افتحي `manifest.json` لمعرفة السبب، وأعيدي التشغيل بمجلد جديد.
+
 ### نقّاد GLM وQwen المجانيون
 
 يستخدم `examples/free-critics.json` نموذج GLM-5.3-Flash للبحث والخطة وQwen 3.8 27B لتحسين الفكرة عبر واجهتي OpenRouter وGroq. عيّن `OPENROUTER_API_KEY` و`GROQ_API_KEY` و`OPENAI_API_KEY` و`OPENAI_MODEL` في بيئتك، ثم شغّل:
