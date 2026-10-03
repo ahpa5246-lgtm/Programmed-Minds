@@ -1,0 +1,31 @@
+{
+  "strict_diversity": true,
+  "max_revisions": 2,
+  "max_calls": 30,
+  "max_output_tokens": 4000,
+  "default": {
+    "model_env": "OPENAI_MODEL",
+    "api_key_env": "OPENAI_API_KEY",
+    "base_url": "https://api.openai.com/v1"
+  },
+  "roles": {
+    "research_critic": {
+      "api_style": "chat_completions",
+      "model": "z-ai/glm-5.3-flash:free",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "base_url": "https://openrouter.ai/api/v1"
+    },
+    "improvement_critic": {
+      "api_style": "chat_completions",
+      "model": "qwen/qwen3.8-27b",
+      "api_key_env": "GROQ_API_KEY",
+      "base_url": "https://api.groq.com/openai/v1"
+    },
+    "plan_critic": {
+      "api_style": "chat_completions",
+      "model": "z-ai/glm-5.3-flash:free",
+      "api_key_env": "OPENROUTER_API_KEY",
+      "base_url": "https://openrouter.ai/api/v1"
+    }
+  }
+}

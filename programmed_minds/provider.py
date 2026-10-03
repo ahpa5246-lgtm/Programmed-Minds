@@ -45,13 +45,33 @@ class LiveProvider:
         except Exception as exc:
             # SDK errors may contain request content; persist only type, never headers/key.
             raise ProviderError('Provider request failed: '+type(exc).__name__) from None
+    def _chat(self,client,**kwargs):
+        if self.calls>=self.max_calls: raise ProviderError('Model call budget exhausted')
+        self.calls+=1
+        try: return client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            raise ProviderError('Provider request failed: '+type(exc).__name__) from None
     def generate(self,role,schema,context):
+        settings,model,endpoint,key=self._settings(role)
+        style=settings.get('api_style','responses')
+        if style not in ('responses','chat_completions'): raise ProviderError('Unsupported API style for '+role)
+        if style=='chat_completions' and role not in ('research_critic','improvement_critic','plan_critic','tester'):
+            raise ProviderError('Chat provider cannot perform verified web search for '+role)
         try: from openai import OpenAI
         except ImportError: raise ProviderError('Install live dependencies: pip install -e ".[live]"') from None
-        settings,model,endpoint,key=self._settings(role)
         client=OpenAI(api_key=key,base_url=endpoint,timeout=90,max_retries=0)
         content=json.dumps(context,ensure_ascii=False)
         if len(content)>200000: raise ProviderError('Context exceeds 200000 characters; narrow the brief')
+        if style=='chat_completions':
+            reply=self._chat(client,model=model,messages=[
+                {'role':'system','content':COMMON+'\n'+ROLE_PROMPTS[role]+'\nReturn only JSON matching this schema: '+json.dumps(schema.model_json_schema())},
+                {'role':'user','content':content}],response_format={'type':'json_object'},max_tokens=self.tokens)
+            raw=reply.choices[0].message.content if reply.choices else None
+            try: data=schema.model_validate_json(raw).model_dump()
+            except (ValueError,TypeError): raise ProviderError('Invalid or refused structured response for '+role) from None
+            usage={'input_tokens':getattr(reply.usage,'prompt_tokens',0) or 0,
+                   'output_tokens':getattr(reply.usage,'completion_tokens',0) or 0}
+            return {'data':data,'evidence_urls':[],'identity':endpoint.rstrip('/')+'|'+model,'usage':usage}
         observed=[]; search_text=''; usage={'input_tokens':0,'output_tokens':0}
         if role in ('researcher','designer'):
             search=self._call(client,model=model,instructions=COMMON+'\n'+ROLE_PROMPTS[role],input=content,

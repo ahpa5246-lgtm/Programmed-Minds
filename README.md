@@ -36,6 +36,16 @@ python -m programmed_minds view --run runs/demo
 python -m pip install -e '.[live]'
 ```
 
+### نقّاد GLM وQwen المجانيون
+
+يستخدم `examples/free-critics.json` نموذج GLM-5.3-Flash للبحث والخطة وQwen 3.8 27B لتحسين الفكرة عبر واجهتي OpenRouter وGroq. عيّن `OPENROUTER_API_KEY` و`GROQ_API_KEY` و`OPENAI_API_KEY` و`OPENAI_MODEL` في بيئتك، ثم شغّل:
+
+```bash
+pminds plan --brief examples/brief.json --config examples/free-critics.json --out runs/free-critics-01
+```
+
+أنشئ مفتاح [OpenRouter](https://openrouter.ai/settings/keys) ومفتاح [Groq](https://console.groq.com/keys) من حسابيك. تظل أدوار الباحث والمحسّن والمخطط والمصمم على OpenAI في هذا المثال؛ باحث المشروع ومصممه يحتاجان بحث ويب ومصادر مرصودة. المجانية تخص طلبات النقّاد ضمن حصص المزودين فقط، ولا تعني أن التشغيل الكامل مجاني. حد OpenRouter المجاني حاليًا 50 طلبًا في اليوم؛ افحص حدود حسابك في Groq. لا تفعّل نموذجًا مدفوعًا في ملف الإعداد إن أردت تجنب الرسوم. عند نفاد الحصة أو فشل JSON تتوقف المرحلة دون اعتماد المخرجات.
+
 عدّل `examples/brief.json`: الهدف، الجمهور، القيود، وشروط المسابقة أو رابطها. عيّن `OPENAI_API_KEY` و`OPENAI_MODEL` و`CRITIC_MODEL` في بيئتك، ثم:
 
 ```bash

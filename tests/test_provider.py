@@ -1,4 +1,6 @@
 import os,sys,unittest
+import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from programmed_minds.provider import LiveProvider,ProviderError
@@ -34,4 +36,32 @@ class ProviderTests(unittest.TestCase):
   client=SimpleNamespace(responses=SimpleNamespace(create=fail))
   with self.assertRaises(ProviderError) as caught: self.provider()._call(client,model='x')
   self.assertNotIn('private',str(caught.exception))
+ def test_free_critics_use_distinct_chat_endpoints_and_validate_review(self):
+  config=json.loads((Path(__file__).resolve().parents[1]/'examples/free-critics.json').read_text())
+  calls=[]
+  def factory(**kwargs):
+   def create(**request):
+    calls.append((kwargs,request))
+    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content='{"verdict":"approve","summary":"ok","issues":[],"questions":[]}'))],usage=SimpleNamespace(prompt_tokens=9,completion_tokens=8))
+   return SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+  with patch.dict(sys.modules,{'openai':SimpleNamespace(OpenAI=factory)}),patch.dict(os.environ,{'OPENROUTER_API_KEY':'route-secret','GROQ_API_KEY':'groq-secret'}):
+   provider=LiveProvider(config)
+   a=provider.generate('research_critic',Review,{'draft':{}})
+   b=provider.generate('improvement_critic',Review,{'draft':{}})
+  self.assertEqual([a['data']['verdict'],b['data']['verdict']],['approve','approve'])
+  self.assertNotEqual(a['identity'],b['identity'])
+  self.assertEqual([r['model'] for _,r in calls],['z-ai/glm-5.3-flash:free','qwen/qwen3.8-27b'])
+  self.assertEqual([r['response_format']['type'] for _,r in calls],['json_object','json_object'])
+  self.assertEqual(a['usage'],{'input_tokens':9,'output_tokens':8})
+  self.assertNotIn('secret',str(a)+str(b))
+ def test_chat_critic_invalid_review_fails_closed(self):
+  reply=SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content='{"verdict":"approve","issues":[]}'))],usage=None)
+  client=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw:reply)))
+  config={'default':{'model':'any'},'roles':{'plan_critic':{'api_style':'chat_completions'}}}
+  with patch.dict(sys.modules,{'openai':SimpleNamespace(OpenAI=lambda **kw:client)}),patch.dict(os.environ,{'OPENAI_API_KEY':'secret'}):
+   with self.assertRaisesRegex(ProviderError,'Invalid.*response'): LiveProvider(config).generate('plan_critic',Review,{})
+ def test_chat_critic_cannot_enable_unverified_web_search(self):
+  config={'default':{'model':'any'},'roles':{'researcher':{'api_style':'chat_completions'}}}
+  with patch.dict(os.environ,{'OPENAI_API_KEY':'secret'}):
+   with self.assertRaisesRegex(ProviderError,'web search'): LiveProvider(config).generate('researcher',Research,{})
 if __name__=='__main__': unittest.main()
