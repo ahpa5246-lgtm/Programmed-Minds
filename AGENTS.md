@@ -3,4 +3,6 @@ Follow docs/superpowers/specs/2026-10-02-programmed-minds-design.md. Use origina
 
 For competition briefs, follow docs/strategy-tools.md. Use original BMAD/gstack/Spec Kit selectively as external exploratory/review workflows; do not install or duplicate their full instruction stacks in this repository. Programmed Minds owns its go/clarify/stop gate and coding handoff; Superpowers owns execution in the target repository. No AI strategy assessment guarantees a prize.
 
+For named competitions, do not hand implementation to a coding agent on a model-written `go`. First complete `docs/evidence-gates.md` and run `pminds gate --stage handoff` with a real evidence manifest and all three exact Codex draft/critic pairs. A `blocked` review, stale draft, missing experiment or failed gate stops handoff. After build, run target checks, `pminds audit`, and `pminds gate --stage release` bound to a clean target commit; a successful evidence receipt is not human release approval.
+
 When the user asks Codex to serve as the researcher, improver and planner inside the conversation, follow `docs/codex-roles.md`. Use this project's `critique` command for outside API critics. Do not route principal roles through `examples/fully-free.json`; that config is a distinct fully automated alternative.
