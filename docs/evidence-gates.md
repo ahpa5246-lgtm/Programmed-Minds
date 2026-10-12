@@ -107,7 +107,7 @@ Run the actual target tests and `pminds audit` first. For `release`, create anot
 pminds gate --stage release --brief brief.json --evidence evidence/release.json --target /path/to/target-repo --audit-manifest runs/audit-01/manifest.json
 ```
 
-Release fails if the checkout is dirty or points to a different commit, any evidence is missing/stale, or the post-build audit has not returned `verified`. Even when the command returns `evidence_documented`, the existing audit's `release_approved: false` remains in force: a human must inspect the outcomes and authorize release. GitHub branch protection or a required CI job must call the gate from the target repository to make it a technical merge barrier; the CLI cannot stop someone bypassing the workflow on Devpost or pushing directly to an unprotected branch.
+Release fails if the checkout is dirty or points to a different commit, any evidence is missing/stale, or the post-build audit has not returned `verified` **for that same target commit**. The tool-check report records the clean commit before and after checks and blocks if those revisions differ; non-Git and dirty targets can still run checks, but cannot pass release readiness. Even when the command returns `evidence_documented`, the existing audit's `release_approved: false` remains in force: a human must inspect the outcomes and authorize release. GitHub branch protection or a required CI job must call the gate from the target repository to make it a technical merge barrier; the CLI cannot stop someone bypassing the workflow on Devpost or pushing directly to an unprotected branch.
 
 ## Security and limitations
 
