@@ -106,6 +106,22 @@ class GateTests(unittest.TestCase):
         with self.assertRaisesRegex(EvidenceError, "stale"):
             check_evidence(self.brief, path, "release", target)
 
+    def test_cli_release_rejects_old_audit_and_accepts_matching_revision(self):
+        from programmed_minds.cli import main
+        report, path, target = self.fixture("release")
+        brief_path = self.root / "brief.json"
+        self.save(brief_path, self.brief)
+        audit_path = self.root / "audit.json"
+        audit = {"status": "verified", "release_approved": False, "target_commit": "0" * 40}
+        self.save(audit_path, audit)
+        args = ["gate", "--stage", "release", "--brief", str(brief_path),
+                "--evidence", str(path), "--target", str(target),
+                "--audit-manifest", str(audit_path)]
+        self.assertEqual(main(args), 2)
+        audit["target_commit"] = report["target_commit"]
+        self.save(audit_path, audit)
+        self.assertEqual(main(args), 0)
+
     def test_release_requires_target(self):
         _, path, _ = self.fixture("release")
         with self.assertRaisesRegex(EvidenceError, "requires --target"):
