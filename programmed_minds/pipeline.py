@@ -196,7 +196,8 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
                     logs[check['name']]=raw.decode('utf-8',errors='replace')
     context={'brief':manifest['brief'],'requirements':requirements,'tool_report':report,'test_logs':logs,'plan':approved['planner']}
     result={'status':'blocked','mode':provider.mode,'release_approved':False,'report_hash':digest(report),
-            'planned_run':str(Path(run_dir).resolve()),'stages':[],'reasons':[]}
+            'planned_run':str(Path(run_dir).resolve()),'target_commit':report.get('target_commit'),
+            'stages':[],'reasons':[]}
     try:
         reply=provider.generate('tester',SCHEMAS['tester'],context)
         audit=SCHEMAS['tester'].model_validate(reply['data']).model_dump()
