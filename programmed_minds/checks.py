@@ -312,6 +312,13 @@ def run_checks(target: Path, config: dict, output: Path) -> dict:
     if output.is_relative_to(target):
         raise ValueError('Check reports must be outside the scanned target')
     output.mkdir(parents=True, exist_ok=False)
+    # Capture a clean source revision before executing target checks.
+    # Non-Git or dirty targets remain testable but cannot later pass release gating.
+    from .evidence_gates import _git_commit, EvidenceError
+    try:
+        initial_commit = _git_commit(target)
+    except (EvidenceError, OSError, subprocess.SubprocessError):
+        initial_commit = None
     results = []
     for index, entry in enumerate(entries):
         name = entry['name']
@@ -345,7 +352,16 @@ def run_checks(target: Path, config: dict, output: Path) -> dict:
             result.update(status='error', reason=sanitize(str(exc)))
     passed = any(r['status'] == 'passed' for r in results)
     blocked = any(r['status'] in {'failed', 'error'} or (r['required'] and r['status'] != 'passed') for r in results)
-    report = {'status': 'passed' if passed and not blocked else 'blocked', 'checks': results}
+    try:
+        final_commit = _git_commit(target)
+    except (EvidenceError, OSError, subprocess.SubprocessError):
+        final_commit = None
+    # A pass after code changed while tests ran must not authorize that commit.
+    if initial_commit and final_commit != initial_commit:
+        blocked = True
+    checked_commit = initial_commit if initial_commit and initial_commit == final_commit else None
+    report = {'status': 'passed' if passed and not blocked else 'blocked',
+              'checks': results, 'target_commit': checked_commit}
     report['sha256'] = hashlib.sha256(json.dumps(report, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     _write_new(output / 'checks.json', json.dumps(report, indent=2, ensure_ascii=False) + '\n')
     return report
