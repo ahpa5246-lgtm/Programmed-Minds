@@ -59,7 +59,8 @@ def main(argv=None):
                 if not args.audit_manifest:
                     raise EvidenceError('Release readiness requires --audit-manifest from pminds audit')
                 audit=read_json(args.audit_manifest)
-                if audit.get('status')!='verified' or audit.get('release_approved') is not False:
+                if (audit.get('status')!='verified' or audit.get('release_approved') is not False
+                    or audit.get('target_commit')!=receipt['target_commit']):
                     raise EvidenceError('Post-build audit is missing, unverified or misleading')
             result={'status':'evidence_documented','mode':'gate','stage':args.stage,
                     'warning':receipt['warning'],'receipt':receipt}
