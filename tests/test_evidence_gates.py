@@ -23,7 +23,7 @@ class GateTests(unittest.TestCase):
             file.write_text("observed evidence: " + name, encoding="utf-8")
             entries.append({"id": name, "status": "passed", "artifact": file.name,
                             "sha256": hashlib.sha256(file.read_bytes()).hexdigest(),
-                            "sample_count": 2, "method": "small documented trial"})
+                            "sample_count": 12, "method": "small documented trial"})
         manifest = {"version": 1, "stage": stage, "brief_sha256": fingerprint(self.brief), "checks": entries}
         target = None
         if stage == "release":
