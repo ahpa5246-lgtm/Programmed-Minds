@@ -59,7 +59,8 @@ def safe_error(exc):
     # Never persist provider/request exception payloads or Pydantic input values.
     if isinstance(exc,PipelineError): return str(exc)
     from .provider import ProviderError
-    if isinstance(exc,ProviderError): return str(exc)
+    from .evidence_gates import EvidenceError
+    if isinstance(exc,(ProviderError,EvidenceError)): return str(exc)
     return 'Invalid stage response: '+type(exc).__name__
 
 def handoff(approved):
@@ -93,7 +94,7 @@ def handoff(approved):
             '', 'Run `pminds check` against the implemented target, then `pminds audit`. A plan is not a finished project.']
     return '\n'.join(lines)+'\n'
 
-def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=False):
+def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=False,evidence_report=None):
     if not isinstance(brief,dict) or not isinstance(brief.get('goal'),str) or not brief['goal'].strip():
         raise PipelineError('Brief needs a nonempty goal')
     if not 0<=max_revisions<=5: raise PipelineError('max_revisions must be between 0 and 5')
@@ -150,6 +151,13 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
                     approved[producer]=draft; break
                 if attempt==max_revisions: raise PipelineError(critic+' still has unresolved objections; revision budget exhausted')
                 feedback=review
+        # For live competition runs the critical research gate is a real artifact
+        # check, not a model-written 'go'. Demo/replay can only produce demo plans.
+        if competition_supplied(brief) and provider.mode != 'demo':
+            from .evidence_gates import EvidenceError, check_evidence
+            if not evidence_report:
+                raise EvidenceError('Competition handoff blocked: supply --evidence with verified source artifacts')
+            manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         design,_=generate('designer',{'brief':brief,'approved':approved,'tool_registry':list(TOOLS)})
         approved['designer']=design
         with (output_dir/'HANDOFF.md').open('x',encoding='utf-8') as handle: handle.write(handoff(approved))
@@ -188,7 +196,8 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
                     logs[check['name']]=raw.decode('utf-8',errors='replace')
     context={'brief':manifest['brief'],'requirements':requirements,'tool_report':report,'test_logs':logs,'plan':approved['planner']}
     result={'status':'blocked','mode':provider.mode,'release_approved':False,'report_hash':digest(report),
-            'planned_run':str(Path(run_dir).resolve()),'stages':[],'reasons':[]}
+            'planned_run':str(Path(run_dir).resolve()),'target_commit':report.get('target_commit'),
+            'stages':[],'reasons':[]}
     try:
         reply=provider.generate('tester',SCHEMAS['tester'],context)
         audit=SCHEMAS['tester'].model_validate(reply['data']).model_dump()

@@ -20,6 +20,10 @@ Do not agree with the user's proposed solution automatically. Restate the user p
 
 Translate the surviving concept into requirements with stable IDs, an acceptance criterion and an actual test for each. Map judging criteria to observable demo steps and evidence. Specify architecture, data and schema, auth/permissions if needed, UI states, failure recovery, accessibility, deployment, rollback and scope cuts. Name repository paths, task dependencies and test IDs. Decide applicability of each tool listed in `programmed_minds/models.py::TOOLS`, with reason and real evidence expected. Include a task to resolve each remaining unknown and a scenario where an apparently functioning implementation still loses on judging criteria. Never mark scanners, browser flows, user testing or code review passed from a planned command.
 
+## Machine-enforced Codex boundary
+
+A text-only instruction or a saved `review.json` is not permission to build. For named contests, provide the SHA-256-backed handoff evidence and a `codex-reviews.json` mapping each unchanged Codex draft to the matching `pminds critique` result. Run `pminds gate --stage handoff --brief ... --evidence ... --codex-manifest ...` and require exit status zero before coding. The release gate later requires frozen benchmark/user-study/live-inference/demo artifacts, a clean target Git commit, and a verified `pminds audit`. See [evidence gates](evidence-gates.md). An evidence receipt is documentary, never scientific or human release sign-off.
+
 ## Critics and execution
 
 After each principal artifact, call `python -m programmed_minds critique` with the appropriate role, an actual JSON draft, the brief and the two-key config. The critic must cite precise weaknesses, give a verdict and ask disconfirming questions. Read and answer objections with new evidence; unresolved medium or higher issues block the next stage. Save critic JSON and the revised principal artifact. The API models are outside reviewers, not proof of correctness; their free quotas and model availability are outside this repository's control.

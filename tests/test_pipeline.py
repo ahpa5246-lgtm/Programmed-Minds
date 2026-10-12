@@ -87,6 +87,16 @@ class PipelineTests(unittest.TestCase):
         handoff=(self.out/'HANDOFF.md').read_text()
         self.assertIn('A rival may show more meaningful orchestration',handoff)
         self.assertIn('A shallow scheduled workflow will not stand out',handoff)
+    def test_live_competition_cannot_handoff_on_model_go_alone(self):
+        class LiveReplay(ReplayProvider):
+            mode = 'live'
+        self.fixture['improver'][0]['data']['strategy_assessment']=self.assessment()
+        brief={'goal':'Win a hackathon','competition':{'name':'Render Challenge','rules':['Use Render Workflows']}}
+        result=run_pipeline(brief,LiveReplay(self.fixture),self.out)
+        self.assertEqual(result['status'],'blocked')
+        self.assertIn('evidence',result['error'].lower())
+        self.assertFalse((self.out/'HANDOFF.md').exists())
+
     def test_competition_rules_link_must_be_in_observed_research(self):
         self.fixture['improver'][0]['data']['strategy_assessment']=self.assessment()
         result=run_pipeline({'goal':'Win a hackathon','competition':{
