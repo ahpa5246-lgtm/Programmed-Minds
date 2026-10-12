@@ -14,6 +14,7 @@ REQUIRED = {
     "handoff": ("rules_review", "competitor_comparison", "falsification_spike"),
     "release": ("holdout_benchmark", "outside_user_study", "live_ai_probe", "end_to_end_demo"),
 }
+MIN_SAMPLES = {"competitor_comparison": 2, "holdout_benchmark": 10, "outside_user_study": 2}
 HEX_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 HEX_GIT = re.compile(r"[0-9a-f]{40}\Z")
 MAX_ARTIFACT_BYTES = 2_000_000
@@ -111,7 +112,7 @@ def check_evidence(brief, report_path, stage, target=None):
         item = mapping[name]
         if item.get("status") != "passed":
             raise EvidenceError("Unresolved evidence gate: " + name)
-        if not isinstance(item.get("sample_count"), int) or isinstance(item["sample_count"], bool) or item["sample_count"] < 1:
+        if not isinstance(item.get("sample_count"), int) or isinstance(item["sample_count"], bool) or item["sample_count"] < MIN_SAMPLES.get(name, 1):
             raise EvidenceError("Missing executed sample count for: " + name)
         if not isinstance(item.get("method"), str) or not item["method"].strip():
             raise EvidenceError("Missing evidence collection method for: " + name)
