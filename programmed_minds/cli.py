@@ -6,6 +6,7 @@ from pathlib import Path
 from .pipeline import run_pipeline,run_audit,PipelineError
 from .provider import LiveProvider,ReplayProvider,ProviderError
 from .models import Review
+from .evidence_gates import EvidenceError, check_evidence, check_codex_reviews
 
 def read_json(path):
     path=Path(path)
@@ -23,6 +24,13 @@ def main(argv=None):
     plan=subs.add_parser('plan',help='Research, critique, improve, plan and design')
     plan.add_argument('--brief',required=True); plan.add_argument('--config'); plan.add_argument('--replay')
     plan.add_argument('--out',required=True)
+    plan.add_argument('--evidence',help='File-backed competition handoff evidence manifest (required for live contest runs)')
+    gate=subs.add_parser('gate',help='Fail-closed competition handoff or release readiness gate')
+    gate.add_argument('--brief',required=True); gate.add_argument('--evidence',required=True)
+    gate.add_argument('--stage',choices=('handoff','release'),required=True)
+    gate.add_argument('--target',help='Clean Git repository root; required for release')
+    gate.add_argument('--codex-manifest',help='All three matched and approved Codex critic reviews; required for handoff')
+    gate.add_argument('--audit-manifest',help='Verified post-build pminds audit manifest; required for release')
     check=subs.add_parser('check',help='Run original tool CLIs against a trusted implemented target')
     check.add_argument('--target',required=True); check.add_argument('--config',required=True); check.add_argument('--out',required=True)
     audit=subs.add_parser('audit',help='Run tester against the approved plan and actual check report')
@@ -38,7 +46,23 @@ def main(argv=None):
         if args.command=='plan':
             cfg=read_json(args.config) if args.config else {}
             result=run_pipeline(read_json(args.brief),provider(args),args.out,
-                                max_revisions=cfg.get('max_revisions',2),strict_diversity=cfg.get('strict_diversity',False))
+                                max_revisions=cfg.get('max_revisions',2),strict_diversity=cfg.get('strict_diversity',False),
+                                evidence_report=args.evidence)
+        elif args.command=='gate':
+            brief=read_json(args.brief)
+            receipt=check_evidence(brief,args.evidence,args.stage,target=args.target)
+            if args.stage=='handoff':
+                if not args.codex_manifest:
+                    raise EvidenceError('Codex handoff requires --codex-manifest with three approved critiques')
+                receipt['codex_reviews']=check_codex_reviews(brief,args.codex_manifest)
+            else:
+                if not args.audit_manifest:
+                    raise EvidenceError('Release readiness requires --audit-manifest from pminds audit')
+                audit=read_json(args.audit_manifest)
+                if audit.get('status')!='verified' or audit.get('release_approved') is not False:
+                    raise EvidenceError('Post-build audit is missing, unverified or misleading')
+            result={'status':'evidence_documented','mode':'gate','stage':args.stage,
+                    'warning':receipt['warning'],'receipt':receipt}
         elif args.command=='check':
             import os
             if os.name!='posix': raise ValueError('External checks require Linux/macOS or WSL on Windows')
@@ -75,11 +99,12 @@ def main(argv=None):
             print(f'عرض التقارير: http://127.0.0.1:{args.port}',flush=True)
             serve(Path(args.run),port=args.port,audit_dir=Path(args.audit) if args.audit else None,checks_dir=Path(args.checks) if args.checks else None); return 0
         print(json.dumps({'status':result['status'],'mode':result.get('mode'),
-                          'output':str(Path(args.out).resolve()),'error':result.get('error'),
-                          'reasons':result.get('reasons',[])},ensure_ascii=False))
-        return 0 if result['status'] in ('planned','passed','verified','reviewed') else 1
+                          'output':str(Path(args.out).resolve()) if hasattr(args,'out') else None,
+                          'stage':result.get('stage'),'warning':result.get('warning'),
+                          'error':result.get('error'),'reasons':result.get('reasons',[])},ensure_ascii=False))
+        return 0 if result['status'] in ('planned','passed','verified','reviewed','evidence_documented') else 1
     except (OSError,ValueError,KeyError,PipelineError,ProviderError) as exc:
         # Invalid JSON could contain secrets; do not print content or traceback.
-        message=str(exc) if isinstance(exc,(PipelineError,ProviderError)) or str(exc)=='External checks require Linux/macOS or WSL on Windows' else type(exc).__name__+'; verify input paths and JSON configuration'
+        message=str(exc) if isinstance(exc,(PipelineError,ProviderError,EvidenceError)) or str(exc)=='External checks require Linux/macOS or WSL on Windows' else type(exc).__name__+'; verify input paths and JSON configuration'
         print('Error: '+message,file=sys.stderr); return 2
     except KeyboardInterrupt: return 130
