@@ -137,7 +137,8 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
                   'input_hash':digest(context),'output_hash':digest(data),'evidence_urls':observed}
         name=f"{len(manifest['stages'])+1:02d}-{role}.json"
         write_json(output_dir/name,artifact)
-        entry={'role':role,'artifact':name,'output_hash':artifact['output_hash']}
+        entry={'role':role,'artifact':name,'output_hash':artifact['output_hash'],
+               'artifact_sha256':hashlib.sha256((output_dir/name).read_bytes()).hexdigest()}
         if reused: entry['reused']=True
         manifest['stages'].append(entry)
         # Immutable snapshots survive interrupts without overwriting old evidence.
@@ -174,16 +175,12 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
                     approved[producer]=draft; break
                 if attempt==max_revisions: raise PipelineError(critic+' still has unresolved objections; revision budget exhausted')
                 feedback=review
-        # For live competition runs the critical research gate is a real artifact
-        # check, not a model-written 'go'. Demo/replay can only produce demo plans.
-        if competition_supplied(brief) and provider.mode != 'demo':
-            from .evidence_gates import EvidenceError, check_evidence
-            if not evidence_report:
-                raise EvidenceError('Competition handoff blocked: supply --evidence with verified source artifacts')
-            manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         design,_=generate('designer',{'brief':brief,'approved':approved,'tool_registry':list(TOOLS)})
         approved['designer']=design
         if cached: raise PipelineError('Resume source has unexpected trailing stages')
+        # Recheck after the final request, immediately before emitting handoff.
+        if competition_supplied(brief) and provider.mode != 'demo':
+            manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         with (output_dir/'HANDOFF.md').open('x',encoding='utf-8') as handle: handle.write(handoff(approved))
         write_json(output_dir/'approved.json',approved)
         manifest['status']='planned'

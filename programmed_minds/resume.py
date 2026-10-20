@@ -1,5 +1,6 @@
 """Read immutable stage prefixes for explicit resume into a fresh run directory."""
 import json
+import hashlib
 from pathlib import Path
 
 from .evidence_gates import EvidenceError, _file_bytes, fingerprint
@@ -40,7 +41,10 @@ def load_resume(source, brief, mode, max_revisions, strict_diversity):
         if stage.get("artifact") != expected:
             raise EvidenceError("Saved stage path is not in sequence")
         try:
-            artifact = json.loads(_file_bytes(root, expected))
+            raw = _file_bytes(root, expected)
+            if hashlib.sha256(raw).hexdigest() != stage.get("artifact_sha256"):
+                raise EvidenceError("Saved stage artifact or metadata changed")
+            artifact = json.loads(raw)
         except (ValueError, UnicodeError) as exc:
             raise EvidenceError("Invalid saved stage artifact") from exc
         if (not isinstance(artifact, dict) or artifact.get("role") != role
