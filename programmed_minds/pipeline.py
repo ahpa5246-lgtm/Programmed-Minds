@@ -94,16 +94,24 @@ def handoff(approved):
             '', 'Run `pminds check` against the implemented target, then `pminds audit`. A plan is not a finished project.']
     return '\n'.join(lines)+'\n'
 
-def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=False,evidence_report=None):
+def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=False,evidence_report=None,resume_from=None):
     if not isinstance(brief,dict) or not isinstance(brief.get('goal'),str) or not brief['goal'].strip():
         raise PipelineError('Brief needs a nonempty goal')
     if not 0<=max_revisions<=5: raise PipelineError('max_revisions must be between 0 and 5')
     output_dir=new_directory(output_dir)
     manifest={'status':'running','mode':provider.mode,'release_approved':False,'brief':brief,'stages':[],
-              'created_at':datetime.now(timezone.utc).isoformat(),'strict_diversity':strict_diversity,'warnings':[]}
+              'created_at':datetime.now(timezone.utc).isoformat(),'strict_diversity':strict_diversity,'max_revisions':max_revisions,'warnings':[]}
     approved={}
+    cached=[]
     def generate(role,context):
-        reply=provider.generate(role,SCHEMAS[role],context)
+        reused=bool(cached)
+        if reused:
+            saved=cached.pop(0)
+            if saved['role']!=role or saved.get('input_hash')!=digest(context):
+                raise PipelineError('Saved stage does not match the current transition')
+            reply=saved
+        else:
+            reply=provider.generate(role,SCHEMAS[role],context)
         data=SCHEMAS[role].model_validate(reply['data']).model_dump()
         observed=reply.get('evidence_urls',[])
         if role in ('researcher','designer'): validate_links(data,observed)
@@ -129,9 +137,17 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
                   'input_hash':digest(context),'output_hash':digest(data),'evidence_urls':observed}
         name=f"{len(manifest['stages'])+1:02d}-{role}.json"
         write_json(output_dir/name,artifact)
-        manifest['stages'].append({'role':role,'artifact':name,'output_hash':artifact['output_hash']})
+        entry={'role':role,'artifact':name,'output_hash':artifact['output_hash']}
+        if reused: entry['reused']=True
+        manifest['stages'].append(entry)
+        # Immutable snapshots survive interrupts without overwriting old evidence.
+        write_json(output_dir/f"progress-{len(manifest['stages']):04d}.json",manifest)
         return data,identity
     try:
+        if resume_from is not None:
+            from .resume import load_resume
+            source,cached=load_resume(resume_from,brief,provider.mode,max_revisions,strict_diversity)
+            manifest['resumed_from']=str(source)
         # Validate mandatory evidence before any model request. Recheck it at
         # handoff as artifacts may have changed while generation was running.
         if competition_supplied(brief) and provider.mode != 'demo':
@@ -167,6 +183,7 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
             manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         design,_=generate('designer',{'brief':brief,'approved':approved,'tool_registry':list(TOOLS)})
         approved['designer']=design
+        if cached: raise PipelineError('Resume source has unexpected trailing stages')
         with (output_dir/'HANDOFF.md').open('x',encoding='utf-8') as handle: handle.write(handoff(approved))
         write_json(output_dir/'approved.json',approved)
         manifest['status']='planned'

@@ -24,6 +24,7 @@ def main(argv=None):
     plan=subs.add_parser('plan',help='Research, critique, improve, plan and design')
     plan.add_argument('--brief',required=True); plan.add_argument('--config'); plan.add_argument('--replay')
     plan.add_argument('--out',required=True)
+    plan.add_argument('--resume-from',help='Reuse a validated stage prefix in a fresh output directory')
     plan.add_argument('--evidence',help='File-backed competition handoff evidence manifest (required for live contest runs)')
     gate=subs.add_parser('gate',help='Fail-closed competition handoff or release readiness gate')
     gate.add_argument('--brief',required=True); gate.add_argument('--evidence',required=True)
@@ -48,7 +49,7 @@ def main(argv=None):
             cfg=read_json(args.config) if args.config else {}
             result=run_pipeline(read_json(args.brief),provider(args),args.out,
                                 max_revisions=cfg.get('max_revisions',2),strict_diversity=cfg.get('strict_diversity',False),
-                                evidence_report=args.evidence)
+                                evidence_report=args.evidence,resume_from=args.resume_from)
         elif args.command=='gate':
             brief=read_json(args.brief)
             receipt=check_evidence(brief,args.evidence,args.stage,target=args.target)

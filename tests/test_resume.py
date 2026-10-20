@@ -36,14 +36,9 @@ class ResumeTests(unittest.TestCase):
         return self.root / "first"
 
     def resume(self, source, provider, brief=None):
-        try:
-            return run_pipeline(
+        return run_pipeline(
                 brief or self.brief, provider, self.root / "resumed", resume_from=source,
-            )
-        except TypeError as exc:
-            if "resume_from" in str(exc):
-                self.fail("Planning cannot resume a validated prefix after a provider outage")
-            raise
+        )
 
     def test_resume_reuses_validated_prefix_without_repeating_model_calls(self):
         source = self.interrupted_run()
