@@ -71,6 +71,18 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         generate.assert_not_called()
 
+    def test_metadata_tamper_cannot_change_a_saved_critic_identity(self):
+        source = self.interrupted_run()
+        artifact = source / "02-research_critic.json"
+        data = json.loads(artifact.read_text())
+        data["identity"] = "different-endpoint|forged-critic"
+        artifact.write_text(json.dumps(data))
+        provider = ReplayProvider(self.fixture)
+        with patch.object(provider, "generate", wraps=provider.generate) as generate:
+            result = self.resume(source, provider)
+        self.assertEqual(result["status"], "blocked")
+        generate.assert_not_called()
+
     def test_mode_change_cannot_launder_demo_into_live_evidence(self):
         source = self.interrupted_run()
         provider = ReplayProvider(self.fixture)
