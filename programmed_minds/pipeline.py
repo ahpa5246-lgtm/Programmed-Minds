@@ -132,6 +132,13 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
         manifest['stages'].append({'role':role,'artifact':name,'output_hash':artifact['output_hash']})
         return data,identity
     try:
+        # Validate mandatory evidence before any model request. Recheck it at
+        # handoff as artifacts may have changed while generation was running.
+        if competition_supplied(brief) and provider.mode != 'demo':
+            from .evidence_gates import EvidenceError, check_evidence
+            if not evidence_report:
+                raise EvidenceError('Competition handoff blocked: supply --evidence with verified source artifacts')
+            manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         for producer,critic in [('researcher','research_critic'),('improver','improvement_critic'),('planner','plan_critic')]:
             feedback=None
             for attempt in range(max_revisions+1):
