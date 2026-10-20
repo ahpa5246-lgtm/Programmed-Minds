@@ -78,6 +78,20 @@ class ManualEvidenceTests(unittest.TestCase):
         self.assertFalse(result["release_approved"])
         self.assertEqual(result["manual_evidence"]["requirements"], ["R1"])
 
+    def test_review_changed_during_tester_request_blocks(self):
+        from unittest.mock import patch
+        generate = self.provider.generate
+
+        def changed(role, schema, context):
+            reply = generate(role, schema, context)
+            if role == "tester":
+                (self.evidence_dir / "review.md").write_text("Changed during tester call")
+            return reply
+
+        with patch.object(self.provider, "generate", side_effect=changed):
+            result = self.audit()
+        self.assertEqual(result["status"], "blocked")
+
     def test_changed_review_artifact_blocks(self):
         (self.evidence_dir / "review.md").write_text("Changed review")
         self.assertEqual(self.audit()["status"], "blocked")

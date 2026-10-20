@@ -67,6 +67,18 @@ class ExecutedEvidenceTests(unittest.TestCase):
    result=run_audit(root/'run',report,p,root/'audit',report_dir=root/'checks')
    self.assertEqual(result['status'],'verified',result['reasons'])
    self.assertFalse(result['release_approved'])
+ def test_log_changed_during_tester_cannot_certify(self):
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp);p=self.setup_run(root);report=self.report(root)
+   generate=p.generate
+   def changed(role,schema,context):
+    reply=generate(role,schema,context)
+    if role=='tester': (root/'checks'/report['checks'][0]['log']).write_text('Changed during tester call')
+    return reply
+   with patch.object(p,'generate',side_effect=changed):
+    result=run_audit(root/'run',report,p,root/'audit',report_dir=root/'checks')
+   self.assertEqual(result['status'],'blocked')
  def test_modified_log_cannot_certify(self):
   with tempfile.TemporaryDirectory() as tmp:
    root=Path(tmp);p=self.setup_run(root);report=self.report(root)
