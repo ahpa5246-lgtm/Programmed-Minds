@@ -137,3 +137,8 @@ python -m unittest discover -s tests -v
 تشمل الاختبارات التراجع المحدود، والرفض، والمصادر غير المرصودة، وهوية النقاد، وتغطية المتطلبات، والأدوات المفقودة، والأخطاء والمهل، وغياب الاختبارات، ومسارات الملفات، وحقن HTML. بعض اختبارات الأدوات تستعمل بدائل اختبارية؛ اختبار subprocess وHTTP محليان فعليان. تشغيل API الحي والماسحات الأصلية وفحص المتصفح موضح كلٌّ على حدة في [سجل التحقق](docs/verification.md).
 
 التقارير محلية وقد تتضمن وصف مشروعك ومصادره؛ لا تضع أسرارًا في وصف المشروع. سجل فحوص CLI يحذف أنماط أسرار شائعة بأفضل جهد، وهذا لا يضمن كشف كل صيغة. المجلد `runs/` مستبعد من Git.
+
+
+## Recover planning work and record manual reviews
+
+Competition evidence is now validated before the first model call and again at handoff. Use [explicit resume](docs/resume.md) to continue a validated stage prefix in a fresh directory after a provider outage. Use [recorded human review evidence](docs/manual-evidence.md) for planned manual requirements and required ASVS, Superpowers or Qodo reviews. These checks preserve the distinction between recorded evidence, audit verification and human release approval.
