@@ -67,15 +67,10 @@ class ManualEvidenceTests(unittest.TestCase):
 
     def audit(self, **options):
         self.manual_path.write_text(json.dumps(self.manual))
-        try:
-            return run_audit(
+        return run_audit(
                 self.root / "run", self.report, self.provider, self.root / "audit",
                 report_dir=self.root / "checks", manual_evidence=self.manual_path, **options,
-            )
-        except TypeError as exc:
-            if "manual_evidence" in str(exc):
-                self.fail("Audit has no path to consume required human review evidence")
-            raise
+        )
 
     def test_recorded_manual_requirements_and_gates_can_be_verified_without_release(self):
         result = self.audit()

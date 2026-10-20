@@ -185,7 +185,7 @@ def load_approved(run_dir):
         if digest(data)!=latest[role]['output_hash']: raise PipelineError('Approved artifact changed after planning')
     return manifest,approved
 
-def run_audit(run_dir,report,provider,output_dir,report_dir=None):
+def run_audit(run_dir,report,provider,output_dir,report_dir=None,manual_evidence=None):
     manifest,approved=load_approved(run_dir)
     output_dir=new_directory(output_dir)
     requirements=approved['improver']['requirements']
@@ -206,6 +206,10 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
             'planned_run':str(Path(run_dir).resolve()),'target_commit':report.get('target_commit'),
             'stages':[],'reasons':[]}
     try:
+        from .manual_evidence import check_manual_evidence
+        manual=check_manual_evidence(approved,report,manual_evidence)
+        result['manual_evidence']=manual
+        context['manual_reviews']=manual
         reply=provider.generate('tester',SCHEMAS['tester'],context)
         audit=SCHEMAS['tester'].model_validate(reply['data']).model_dump()
         write_json(output_dir/'01-tester.json',{'role':'tester','data':audit,'identity':reply['identity'],
@@ -233,7 +237,10 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
             tool=passed.get(case['evidence'])
             req=requirement_map.get(case['requirement_id'])
             matches=[t for t in (tool or {}).get('test_results',[]) if req and t.get('id')==req['test_id']]
-            if (case['status']=='passed' and tool and req and req['evidence_tool'] in ('playwright','python-tests','pgtap')
+            if (case['status']=='passed' and req and req['evidence_tool']=='manual'
+                and case['evidence']=='manual' and req['id'] in manual['requirements']):
+                covered.add(req['id'])
+            elif (case['status']=='passed' and tool and req and req['evidence_tool'] in ('playwright','python-tests','pgtap')
                 and req['evidence_tool']==case['evidence'] and case['evidence'] in logs
                 and case['requirement_id'] in tool.get('requirement_ids',[])
                 and len(matches)==1 and matches[0].get('status')=='passed'):
@@ -241,7 +248,7 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
             else: result['reasons'].append('Unverified test scenario: '+case['scenario'])
         if covered!={r['id'] for r in requirements}: result['reasons'].append('Requirements lack executed test evidence')
         if 'playwright' in automated and 'playwright' not in passed: result['reasons'].append('UI interactions not verified')
-        if any(g['tool'] in ('asvs','qodo','superpowers') and g['required'] for g in approved['planner']['gates']):
+        if (applicable_required & {'asvs','qodo','superpowers'}) - set(manual['gates']):
             result['reasons'].append('Manual ASVS/Superpowers/PR review evidence requires human sign-off')
         if audit['verdict']!='pass' or audit['gaps'] or any(i['severity']!='low' for i in audit['issues']):
             result['reasons'].append('Tester identified gaps or objections')

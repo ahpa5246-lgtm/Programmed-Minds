@@ -35,6 +35,7 @@ def main(argv=None):
     check.add_argument('--target',required=True); check.add_argument('--config',required=True); check.add_argument('--out',required=True)
     audit=subs.add_parser('audit',help='Run tester against the approved plan and actual check report')
     audit.add_argument('--run',required=True); audit.add_argument('--checks',required=True); audit.add_argument('--config'); audit.add_argument('--replay'); audit.add_argument('--out',required=True)
+    audit.add_argument('--manual-evidence',help='Owner-supplied human review manifest bound to the approved plan and checked commit')
     view=subs.add_parser('view',help='Read-only Arabic dashboard, localhost only')
     critique=subs.add_parser('critique',help='Run one free API critic on a Codex-authored draft')
     critique.add_argument('--role',required=True,choices=('research_critic','improvement_critic','plan_critic'))
@@ -70,7 +71,7 @@ def main(argv=None):
             from .checks import run_checks
             result=run_checks(Path(args.target),read_json(args.config),Path(args.out))
         elif args.command=='audit':
-            result=run_audit(args.run,read_json(args.checks),provider(args),args.out,report_dir=Path(args.checks).parent)
+            result=run_audit(args.run,read_json(args.checks),provider(args),args.out,report_dir=Path(args.checks).parent,manual_evidence=args.manual_evidence)
         elif args.command=='critique':
             from .pipeline import new_directory,write_json,digest
             brief=read_json(args.brief); draft=read_json(args.draft)
