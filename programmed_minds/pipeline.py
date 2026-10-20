@@ -268,6 +268,16 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None,manual_evidence
             result['reasons'].append('Tester identified gaps or objections')
         if provider.mode=='demo' or manifest['mode']=='demo': result['reasons'].append('Demo evidence cannot approve release')
         if not result['reasons']:
+            # A model request may take minutes: bind the final decision to the
+            # same review and log bytes that were supplied to that request.
+            if check_manual_evidence(approved,report,manual_evidence)!=manual:
+                raise PipelineError('Manual evidence changed during audit')
+            from .evidence_gates import _file_bytes
+            for check in checks:
+                if check.get('name') in logs:
+                    raw=_file_bytes(Path(report_dir).resolve(),check.get('log'))
+                    if hashlib.sha256(raw).hexdigest()!=check.get('log_sha256'):
+                        raise PipelineError('Tool evidence changed during audit')
             result['status']='verified'; result['release_approved']=False # release remains a human decision
     except Exception as exc: result['reasons'].append(safe_error(exc))
     write_json(output_dir/'manifest.json',result)
