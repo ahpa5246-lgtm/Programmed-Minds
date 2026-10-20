@@ -94,16 +94,24 @@ def handoff(approved):
             '', 'Run `pminds check` against the implemented target, then `pminds audit`. A plan is not a finished project.']
     return '\n'.join(lines)+'\n'
 
-def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=False,evidence_report=None):
+def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=False,evidence_report=None,resume_from=None):
     if not isinstance(brief,dict) or not isinstance(brief.get('goal'),str) or not brief['goal'].strip():
         raise PipelineError('Brief needs a nonempty goal')
     if not 0<=max_revisions<=5: raise PipelineError('max_revisions must be between 0 and 5')
     output_dir=new_directory(output_dir)
     manifest={'status':'running','mode':provider.mode,'release_approved':False,'brief':brief,'stages':[],
-              'created_at':datetime.now(timezone.utc).isoformat(),'strict_diversity':strict_diversity,'warnings':[]}
+              'created_at':datetime.now(timezone.utc).isoformat(),'strict_diversity':strict_diversity,'max_revisions':max_revisions,'warnings':[]}
     approved={}
+    cached=[]
     def generate(role,context):
-        reply=provider.generate(role,SCHEMAS[role],context)
+        reused=bool(cached)
+        if reused:
+            saved=cached.pop(0)
+            if saved['role']!=role or saved.get('input_hash')!=digest(context):
+                raise PipelineError('Saved stage does not match the current transition')
+            reply=saved
+        else:
+            reply=provider.generate(role,SCHEMAS[role],context)
         data=SCHEMAS[role].model_validate(reply['data']).model_dump()
         observed=reply.get('evidence_urls',[])
         if role in ('researcher','designer'): validate_links(data,observed)
@@ -129,9 +137,25 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
                   'input_hash':digest(context),'output_hash':digest(data),'evidence_urls':observed}
         name=f"{len(manifest['stages'])+1:02d}-{role}.json"
         write_json(output_dir/name,artifact)
-        manifest['stages'].append({'role':role,'artifact':name,'output_hash':artifact['output_hash']})
+        entry={'role':role,'artifact':name,'output_hash':artifact['output_hash'],
+               'artifact_sha256':hashlib.sha256((output_dir/name).read_bytes()).hexdigest()}
+        if reused: entry['reused']=True
+        manifest['stages'].append(entry)
+        # Immutable snapshots survive interrupts without overwriting old evidence.
+        write_json(output_dir/f"progress-{len(manifest['stages']):04d}.json",manifest)
         return data,identity
     try:
+        if resume_from is not None:
+            from .resume import load_resume
+            source,cached=load_resume(resume_from,brief,provider.mode,max_revisions,strict_diversity)
+            manifest['resumed_from']=str(source)
+        # Validate mandatory evidence before any model request. Recheck it at
+        # handoff as artifacts may have changed while generation was running.
+        if competition_supplied(brief) and provider.mode != 'demo':
+            from .evidence_gates import EvidenceError, check_evidence
+            if not evidence_report:
+                raise EvidenceError('Competition handoff blocked: supply --evidence with verified source artifacts')
+            manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         for producer,critic in [('researcher','research_critic'),('improver','improvement_critic'),('planner','plan_critic')]:
             feedback=None
             for attempt in range(max_revisions+1):
@@ -151,15 +175,12 @@ def run_pipeline(brief,provider,output_dir,max_revisions=2,strict_diversity=Fals
                     approved[producer]=draft; break
                 if attempt==max_revisions: raise PipelineError(critic+' still has unresolved objections; revision budget exhausted')
                 feedback=review
-        # For live competition runs the critical research gate is a real artifact
-        # check, not a model-written 'go'. Demo/replay can only produce demo plans.
-        if competition_supplied(brief) and provider.mode != 'demo':
-            from .evidence_gates import EvidenceError, check_evidence
-            if not evidence_report:
-                raise EvidenceError('Competition handoff blocked: supply --evidence with verified source artifacts')
-            manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         design,_=generate('designer',{'brief':brief,'approved':approved,'tool_registry':list(TOOLS)})
         approved['designer']=design
+        if cached: raise PipelineError('Resume source has unexpected trailing stages')
+        # Recheck after the final request, immediately before emitting handoff.
+        if competition_supplied(brief) and provider.mode != 'demo':
+            manifest['evidence_gate']=check_evidence(brief,evidence_report,'handoff')
         with (output_dir/'HANDOFF.md').open('x',encoding='utf-8') as handle: handle.write(handoff(approved))
         write_json(output_dir/'approved.json',approved)
         manifest['status']='planned'
@@ -178,7 +199,7 @@ def load_approved(run_dir):
         if digest(data)!=latest[role]['output_hash']: raise PipelineError('Approved artifact changed after planning')
     return manifest,approved
 
-def run_audit(run_dir,report,provider,output_dir,report_dir=None):
+def run_audit(run_dir,report,provider,output_dir,report_dir=None,manual_evidence=None):
     manifest,approved=load_approved(run_dir)
     output_dir=new_directory(output_dir)
     requirements=approved['improver']['requirements']
@@ -199,6 +220,10 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
             'planned_run':str(Path(run_dir).resolve()),'target_commit':report.get('target_commit'),
             'stages':[],'reasons':[]}
     try:
+        from .manual_evidence import check_manual_evidence
+        manual=check_manual_evidence(approved,report,manual_evidence)
+        result['manual_evidence']=manual
+        context['manual_reviews']=manual
         reply=provider.generate('tester',SCHEMAS['tester'],context)
         audit=SCHEMAS['tester'].model_validate(reply['data']).model_dump()
         write_json(output_dir/'01-tester.json',{'role':'tester','data':audit,'identity':reply['identity'],
@@ -226,7 +251,10 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
             tool=passed.get(case['evidence'])
             req=requirement_map.get(case['requirement_id'])
             matches=[t for t in (tool or {}).get('test_results',[]) if req and t.get('id')==req['test_id']]
-            if (case['status']=='passed' and tool and req and req['evidence_tool'] in ('playwright','python-tests','pgtap')
+            if (case['status']=='passed' and req and req['evidence_tool']=='manual'
+                and case['evidence']=='manual' and req['id'] in manual['requirements']):
+                covered.add(req['id'])
+            elif (case['status']=='passed' and tool and req and req['evidence_tool'] in ('playwright','python-tests','pgtap')
                 and req['evidence_tool']==case['evidence'] and case['evidence'] in logs
                 and case['requirement_id'] in tool.get('requirement_ids',[])
                 and len(matches)==1 and matches[0].get('status')=='passed'):
@@ -234,12 +262,22 @@ def run_audit(run_dir,report,provider,output_dir,report_dir=None):
             else: result['reasons'].append('Unverified test scenario: '+case['scenario'])
         if covered!={r['id'] for r in requirements}: result['reasons'].append('Requirements lack executed test evidence')
         if 'playwright' in automated and 'playwright' not in passed: result['reasons'].append('UI interactions not verified')
-        if any(g['tool'] in ('asvs','qodo','superpowers') and g['required'] for g in approved['planner']['gates']):
+        if (applicable_required & {'asvs','qodo','superpowers'}) - set(manual['gates']):
             result['reasons'].append('Manual ASVS/Superpowers/PR review evidence requires human sign-off')
         if audit['verdict']!='pass' or audit['gaps'] or any(i['severity']!='low' for i in audit['issues']):
             result['reasons'].append('Tester identified gaps or objections')
         if provider.mode=='demo' or manifest['mode']=='demo': result['reasons'].append('Demo evidence cannot approve release')
         if not result['reasons']:
+            # A model request may take minutes: bind the final decision to the
+            # same review and log bytes that were supplied to that request.
+            if check_manual_evidence(approved,report,manual_evidence)!=manual:
+                raise PipelineError('Manual evidence changed during audit')
+            from .evidence_gates import _file_bytes
+            for check in checks:
+                if check.get('name') in logs:
+                    raw=_file_bytes(Path(report_dir).resolve(),check.get('log'))
+                    if hashlib.sha256(raw).hexdigest()!=check.get('log_sha256'):
+                        raise PipelineError('Tool evidence changed during audit')
             result['status']='verified'; result['release_approved']=False # release remains a human decision
     except Exception as exc: result['reasons'].append(safe_error(exc))
     write_json(output_dir/'manifest.json',result)
