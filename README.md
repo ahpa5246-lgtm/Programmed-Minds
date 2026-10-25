@@ -1,5 +1,35 @@
 # Programmed Minds | العقول المبرمجة
 
+## Download, setup and project overview
+
+A bounded research, review and coding-handoff orchestration tool.
+
+Independent role schemas; offline replay; evidence gates; trusted-tool audit; local dashboard.
+
+![Project workflow illustration](docs/project-overview.svg)
+
+[Download source ZIP](https://github.com/ahpa5246-lgtm/Programmed-Minds/archive/refs/heads/main.zip) · [Changes and branches](https://github.com/ahpa5246-lgtm/Programmed-Minds/branches) · [Verification notes](docs/QUALITY_REVIEW.md)
+
+The ZIP contains source code. Installation steps and external runtime requirements are listed below.
+
+```bash
+git clone https://github.com/ahpa5246-lgtm/Programmed-Minds.git
+cd Programmed-Minds
+```
+
+From the repository directory:
+
+```text
+python -m venv .venv
+# Activate .venv, then:
+python -m pip install -e .
+python -m unittest discover -s tests -v
+# See README workflow examples for pminds plan.
+```
+
+The diagram is a project illustration. Test results and runtime limitations are recorded in [the review](docs/QUALITY_REVIEW.md); it is not a production-readiness certification.
+
+
 ثمانية وكلاء يحوّلون وصف مشروع أو شروط مسابقة إلى بحث موثق، وفكرة محسّنة، وخطة تنفيذ وتوجيه تصميم. وبعد تنفيذ المشروع، يراجع المختبر نتائج أدوات الفحص الأصلية. يعمل التطبيق محليًا، ويحفظ التقارير ويعرضها بواجهة عربية.
 
 هذا تنفيذ قابل للتشغيل، وليس ملف تلقينات فقط. لكنه **لا يكتب مشروعك المستهدف تلقائيًا**: يخرج ملف `HANDOFF.md` لتنفذه مع وكيل البرمجة الذي تستخدمه، ثم تفحص الناتج. لا تحتاج إلى بناء ماسح أمني جديد أو نسخ مستودعات الأدوات.
